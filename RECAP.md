@@ -63,31 +63,37 @@ Lecture 1 covers the fundamental mechanics of Large Language Models (LLMs). LLMs
 
 ```mermaid
 graph TD
-    classDef core fill:#1e1e2e,stroke:#6366f1,stroke-width:2px,color:#f1f5f9;
-    classDef sub fill:#0f172a,stroke:#89b4fa,stroke-width:1px,color:#cdd6f4;
+    classDef main fill:#4f46e5,stroke:#818cf8,stroke-width:2px,color:#ffffff;
+    classDef section fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#f1f5f9;
+    classDef node fill:#0f172a,stroke:#313244,stroke-width:1px,color:#cdd6f4;
+    classDef metric fill:#06b6d4,stroke:#22d3ee,stroke-width:1px,color:#ffffff;
 
-    Root["AAP Lecture 1: LLM Foundations"]:::core
-    
-    Root --> Tokens["1. Tokenization Engine"]:::sub
-    Tokens --> BPE["BPE / tiktoken"]
-    Tokens --> WP["WordPiece / SentencePiece"]
-    
-    Root --> Arch["2. Model Architecture & Sizing"]:::sub
-    Arch --> Dense["Dense Models (All Params Active)"]
-    Arch --> MoE["MoE (Sparse Expert Routing)"]
-    Arch --> Reason["Reasoning Models (Thinking Tokens)"]
-    
-    Root --> Context["3. Context & Embeddings"]:::sub
-    Context --> VectorDB["Vector DB & Embeddings"]
-    Context --> Window["Context Window & Lost-in-Middle"]
-    
-    Root --> Control["4. Sampling & Generation"]:::sub
-    Control --> Temp["Temperature / Top-p / Top-k"]
-    Control --> Hallucination["Hallucination Mechanics"]
-    
-    Root --> Economics["5. Token Economics & Metrics"]:::sub
-    Economics --> Cache["Prompt Caching & Budgeting"]
-    Economics --> Metrics["TTFT & TPOT Inference Metrics"]
+    Start["LLM Foundations (Lecture 1)"]:::main
+
+    Start --> Tok["1. Tokenization Engine"]:::section
+    Tok --> BPE["Byte-Pair Encoding (BPE)<br/>Merges frequent byte pairs"]:::node
+    Tok --> WP["WordPiece<br/>Greedy match + ## continuation"]:::node
+    Tok --> SP["SentencePiece<br/>Raw text + space symbols"]:::node
+    Tok --> Tik["tiktoken<br/>Fast byte-level BPE"]:::node
+
+    Start --> Arch["2. Model Architecture & Sizing"]:::section
+    Arch --> Dense["Dense Model<br/>100% params active per token"]:::node
+    Arch --> MoE["Mixture of Experts (MoE)<br/>Router directs token to experts"]:::node
+    Arch --> Reasoning["Reasoning Models<br/>Generates internal thinking tokens"]:::node
+
+    Start --> Context["3. Context & Embeddings"]:::section
+    Context --> Embed["Embeddings & Vector DB<br/>Dense vector similarity search"]:::node
+    Context --> LostMid["Context Window & Attention<br/>Lost in Middle bottleneck"]:::node
+
+    Start --> Sampling["4. Sampling & Generation"]:::section
+    Sampling --> Temp["Temperature<br/>Logit scaling (0=determ, 1=creative)"]:::node
+    Sampling --> TopPK["Top-p / Top-k<br/>Nucleus & top-k vocab limits"]:::node
+    Sampling --> Halluc["Hallucination<br/>Plausible, confident, incorrect"]:::node
+
+    Start --> Metrics["5. Production Inference"]:::section
+    Metrics --> TTFT["TTFT: Time to First Token"]:::metric
+    Metrics --> TPOT["TPOT: Time per Output Token"]:::metric
+    Metrics --> Cache["Prompt Caching & Budgeting"]:::node
 ```
 
 ---
@@ -151,30 +157,38 @@ Lecture 2 provides an engineering-grade guide to Prompt Engineering ("how to tal
 
 ```mermaid
 graph TD
-    classDef core fill:#1e1e2e,stroke:#6366f1,stroke-width:2px,color:#f1f5f9;
-    classDef sub fill:#0f172a,stroke:#89b4fa,stroke-width:1px,color:#cdd6f4;
+    classDef main fill:#4f46e5,stroke:#818cf8,stroke-width:2px,color:#ffffff;
+    classDef section fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#f1f5f9;
+    classDef node fill:#0f172a,stroke:#313244,stroke-width:1px,color:#cdd6f4;
+    classDef alert fill:#f43f5e,stroke:#fb7185,stroke-width:1px,color:#ffffff;
 
-    Root["AAP Lecture 2: Prompt Engineering"]:::core
+    Start["Prompt Engineering (Lecture 2)"]:::main
 
-    Root --> Anatomy["1. 4-Part Prompt Anatomy"]:::sub
-    Anatomy --> Parts["Role + Task + Context + Format"]
+    Start --> Anatomy["1. 4-Part Prompt Anatomy"]:::section
+    Anatomy --> Role["Role / Persona<br/>Sets system identity & rules"]:::node
+    Anatomy --> Task["Instruction / Task<br/>Explicit directive statement"]:::node
+    Anatomy --> Data["Context / Data Payload<br/>Input content to process"]:::node
+    Anatomy --> Format["Output Formatting<br/>JSON / Markdown / XML schema"]:::node
 
-    Root --> Structure["2. Delimiters & XML Sandwiching"]:::sub
-    Structure --> XML["XML Tags (<instructions>, <text>)"]
-    Structure --> Fences["Fences & Markdown Delimiters"]
+    Start --> Structure["2. Delimiters & Boundary Demarcation"]:::section
+    Structure --> WallText["Wall-of-Text Problem<br/>Model confuses data & instructions"]:::node
+    Structure --> XMLSandwich["XML Sandwiching<br/>&lt;instructions&gt; ... &lt;/text&gt;"]:::node
+    Structure --> Delim["Markdown Fences<br/>```, ---, # Section headers"]:::node
 
-    Root --> Shots["3. Shot Taxonomy"]:::sub
-    Shots --> Zero["Zero-Shot (Directives Only)"]
-    Shots --> One["One-Shot (Single Exemplar)"]
-    Shots --> Few["Few-Shot (Multiple Exemplars)"]
+    Start --> Shots["3. Shot Prompting Taxonomy"]:::section
+    Shots --> ZeroShot["Zero-Shot<br/>Directive only, zero examples"]:::node
+    Shots --> OneShot["One-Shot<br/>Single input-output exemplar"]:::node
+    Shots --> FewShot["Few-Shot<br/>Multiple exemplars for stability"]:::node
 
-    Root --> Failures["4. Failure Patterns"]:::sub
-    Failures --> Ambiguity["Ambiguous Directives & Assumptions"]
-    Failures --> Drift["Format Drift & Self-Contradiction"]
+    Start --> Failures["4. Failure Patterns"]:::section
+    Failures --> Ambiguity["Ambiguous Instructions"]:::node
+    Failures --> Conflict["Conflicting Constraints"]:::node
+    Failures --> Drift["Format Drift<br/>JSON reverts to plain text"]:::node
 
-    Root --> Production["5. Security & Production Evals"]:::sub
-    Production --> Security["Prompt Injection & Defense"]
-    Production --> Versioning["Prompt Versioning & Eval Sets"]
+    Start --> Production["5. Security & Evals"]:::section
+    Production --> Injection["Prompt Injection Attack<br/>User input hijacks prompt"]:::alert
+    Production --> Defense["Structured Input Defenses<br/>Pydantic / JSON Schema validation"]:::node
+    Production --> Evals["Prompt Versioning & Eval Sets<br/>Regression benchmarking"]:::node
 ```
 
 ---
@@ -197,8 +211,8 @@ graph TD
 
 | PDF Deck | Slide Count | Terminology Table | Mermaid Diagram | Accuracy Check | Audit Status |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `AAPLecture1_LLM_Foundations.pdf` | 34 | 15 terms with Slide Refs | Verified Mindmap & Flowchart | 100% Verified | **PASS ✅** |
-| `AAPLecture2_Prompt_Engineering.pdf` | 28 | 9 terms with Slide Refs | Verified Mindmap & Flowchart | 100% Verified | **PASS ✅** |
+| `AAPLecture1_LLM_Foundations.pdf` | 34 | 15 terms with Slide Refs | Detailed Mindmap & Flowchart | 100% Verified | **PASS ✅** |
+| `AAPLecture2_Prompt_Engineering.pdf` | 28 | 9 terms with Slide Refs | Detailed Mindmap & Flowchart | 100% Verified | **PASS ✅** |
 
 ---
 *Generated by Antigravity Agentic Assistant for GEN AI ASSIGNMENT-1.*

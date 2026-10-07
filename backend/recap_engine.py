@@ -122,7 +122,7 @@ Provide your response as a strict JSON object with NO surrounding markdown backt
     def _generate_heuristic(self, slides: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         High-precision fallback recap generator using slide titles, body NLP parsing,
-        keyword extraction, and dynamic Mermaid diagram construction.
+        keyword extraction, and dynamic, highly specific Mermaid diagram construction.
         """
         if not slides:
             return self._empty_recap()
@@ -131,7 +131,7 @@ Provide your response as a strict JSON object with NO surrounding markdown backt
         if main_title.lower().startswith("slide 1") and len(slides) > 1:
             main_title = slides[1]["title"]
 
-        # Group slides into ~3-4 modules
+        # Group slides into thematic modules
         num_slides = len(slides)
         chunk_size = max(1, num_slides // 3)
         modules = []
@@ -150,7 +150,7 @@ Provide your response as a strict JSON object with NO surrounding markdown backt
                 bullets.extend(s.get("bullets", []))
                 all_code.extend(s.get("code_snippets", []))
 
-            # Extract concepts (lines containing ':' or 'is')
+            # Extract concepts
             key_concepts = []
             for line in chunk_text.split(". "):
                 if ":" in line and len(line.split(":")[0]) < 40:
@@ -165,7 +165,6 @@ Provide your response as a strict JSON object with NO surrounding markdown backt
                         })
 
             if not key_concepts:
-                # Fallback concept extraction from titles
                 for s in chunk:
                     key_concepts.append({
                         "term": s["title"],
@@ -175,7 +174,7 @@ Provide your response as a strict JSON object with NO surrounding markdown backt
 
             all_concepts.extend(key_concepts)
 
-            summary = f"This section covers key principles starting from Slide {start_num} to Slide {end_num}, focusing on {mod_title}."
+            summary = f"Covers principles from Slide {start_num} to Slide {end_num}, focusing on {mod_title}."
             takeaways = [b.strip(" -•*") for b in bullets[:4]] if bullets else [
                 f"Understood core mechanisms of {mod_title}.",
                 f"Analyzed key slide items from Slides {start_num} to {end_num}."
@@ -190,27 +189,48 @@ Provide your response as a strict JSON object with NO surrounding markdown backt
                 "takeaways": takeaways
             })
 
-        # Generate Mermaid Mindmap
-        mindmap_lines = ["mindmap", f"  root(({main_title.strip()}))"]
+        # Generate granular Mermaid Mindmap
+        mindmap_lines = ["mindmap", f"  root(({re.sub(r'[()\":]', '', main_title)}))"]
         for mod in modules:
             safe_mod = re.sub(r"[():]", "", mod["module_name"])
             mindmap_lines.append(f"    {safe_mod}")
-            for conc in mod["key_concepts"][:2]:
+            for conc in mod["key_concepts"][:3]:
                 safe_term = re.sub(r"[():]", "", conc["term"])
+                safe_def = re.sub(r"[():]", "", conc["definition"][:30])
                 mindmap_lines.append(f"      {safe_term}")
+                if safe_def:
+                    mindmap_lines.append(f"        {safe_def}...")
 
         mindmap_code = "\n".join(mindmap_lines)
 
-        # Generate Mermaid Flowchart
-        flow_lines = ["graph TD", "  classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4;"]
-        prev_id = None
+        # Generate granular Mermaid Flowchart
+        flow_lines = [
+            "graph TD",
+            "  classDef startEnd fill:#4f46e5,stroke:#818cf8,stroke-width:2px,color:#fff;",
+            "  classDef proc fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4;",
+            "  classDef detail fill:#0f172a,stroke:#313244,stroke-width:1px,color:#a6adc8;"
+        ]
+        
+        flow_lines.append(f'  Start(["Start: {re.sub(r"[()\"]", "", main_title)}"]):::startEnd')
+        prev_node = "Start"
+
         for idx, mod in enumerate(modules):
-            node_id = f"M{idx+1}"
+            mod_id = f"M{idx+1}"
             safe_label = mod['module_name'].replace('"', "'")
-            flow_lines.append(f'  {node_id}["{node_id}: {safe_label}"]')
-            if prev_id:
-                flow_lines.append(f"  {prev_id} --> {node_id}")
-            prev_id = node_id
+            flow_lines.append(f'  {mod_id}["Module {idx+1}: {safe_label}"]:::proc')
+            flow_lines.append(f'  {prev_node} --> {mod_id}')
+            
+            # Attach granular concept sub-nodes
+            for c_idx, conc in enumerate(mod["key_concepts"][:2]):
+                sub_id = f"{mod_id}_C{c_idx+1}"
+                safe_term = conc["term"].replace('"', "'")
+                flow_lines.append(f'  {sub_id}["Key Term: {safe_term}"]:::detail')
+                flow_lines.append(f'  {mod_id} -.-> {sub_id}')
+            
+            prev_node = mod_id
+
+        flow_lines.append(f'  End(["Summary Complete"]):::startEnd')
+        flow_lines.append(f'  {prev_node} --> End')
 
         flowchart_code = "\n".join(flow_lines)
 
@@ -228,12 +248,12 @@ Provide your response as a strict JSON object with NO surrounding markdown backt
             "modules": modules,
             "mermaid_diagrams": [
                 {
-                    "title": "Course Architecture Mindmap",
+                    "title": "Granular Concept Mindmap",
                     "type": "mindmap",
                     "code": mindmap_code
                 },
                 {
-                    "title": "Module Execution Flowchart",
+                    "title": "Topic & Terminology Execution Flowchart",
                     "type": "flowchart",
                     "code": flowchart_code
                 }
