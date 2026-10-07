@@ -75,8 +75,30 @@ function generateClientSideMultiDeckRecap(slides, customPrompt = "") {
   };
 }
 
+function cleanSlideTitle(rawTitle, bodyText = "") {
+  if (!rawTitle) return "Core Topic";
+  
+  // Remove generic prefixes like "PART 1  ·  CORE MECHANICS", "THE HOOK", "RECAP", "NEXT UP", "Stage 1", "Case 1"
+  let cleaned = rawTitle
+    .replace(/^PART\s+\d+\s*[·•-]\s*/i, "")
+    .replace(/^(THE HOOK|LIVE\s*\/|\s*HANDS-ON|RECAP|NEXT UP|PRODUCTION NOTE)/i, "")
+    .replace(/^(Stage|Case|Step|Part)\s+\d+:?\s*/i, "")
+    .trim();
+
+  // If title was only a generic header, pick the first meaningful line from body
+  if (!cleaned || cleaned.length < 3 || /^(Slide \d+|Stage \d+|Case \d+|Part \d+)$/i.test(cleaned)) {
+    const lines = bodyText.split("\n").map(l => l.trim()).filter(l => l.length > 3 && !/^(PART|deboistech|DAY \d+)/i.test(l));
+    if (lines.length > 0) {
+      cleaned = lines[0].replace(/^[-•*1-9.\s]+/, "").trim();
+    }
+  }
+
+  return cleaned || rawTitle || "Core Concept";
+}
+
 function generateSingleDeckRecap(fileName, slides) {
-  const deckTitle = slides[0]?.title && slides[0].title !== `Slide 1` ? slides[0].title : fileName.replace(/\.pdf$/i, '');
+  const firstMeaningfulTitle = slides.find(s => s.title && !s.title.toLowerCase().startsWith("slide 1"))?.title;
+  const deckTitle = cleanSlideTitle(firstMeaningfulTitle || fileName.replace(/\.pdf$/i, ''));
   const numSlides = slides.length;
 
   const chunkSize = Math.max(1, Math.ceil(numSlides / 3));
@@ -88,7 +110,9 @@ function generateSingleDeckRecap(fileName, slides) {
     const chunk = slides.slice(i, i + chunkSize);
     const startNum = chunk[0].slide_number;
     const endNum = chunk[chunk.length - 1].slide_number;
-    const modTitle = chunk[0].title !== `Slide ${startNum}` ? chunk[0].title : `Module ${modules.length + 1}`;
+    
+    const rawModTitle = chunk[0].title !== `Slide ${startNum}` ? chunk[0].title : `Module ${modules.length + 1}`;
+    const modTitle = cleanSlideTitle(rawModTitle, chunk[0].body);
 
     const chunkBody = chunk.map(s => s.body).join("\n");
     const keyConcepts = [];
@@ -96,7 +120,7 @@ function generateSingleDeckRecap(fileName, slides) {
     chunkBody.split("\n").forEach(line => {
       if (line.includes(":") && line.indexOf(":") < 35) {
         const parts = line.split(":");
-        const term = parts[0].replace(/^[-•*1-9.\s]+/, "").trim();
+        const term = cleanSlideTitle(parts[0]);
         const def = parts.slice(1).join(":").trim();
         if (term && def.length > 5) {
           keyConcepts.push({
@@ -111,7 +135,7 @@ function generateSingleDeckRecap(fileName, slides) {
     if (keyConcepts.length === 0) {
       chunk.forEach(s => {
         keyConcepts.push({
-          term: s.title,
+          term: cleanSlideTitle(s.title, s.body),
           definition: s.body.length > 100 ? s.body.substring(0, 100) + "..." : (s.body || "Core slide concept."),
           slide_ref: s.slide_number
         });
@@ -140,31 +164,33 @@ function generateSingleDeckRecap(fileName, slides) {
     });
   }
 
-  // Construct Mermaid Mindmap per PDF deck
-  const safeDeckName = deckTitle.replace(/[()"]/g, '');
+  // Construct Mermaid Mindmap per PDF deck with crisp clean labels
+  const safeDeckName = deckTitle.replace(/[()":;]/g, '');
   const mindmapLines = [
     "mindmap",
     `  root(("${safeDeckName}"))`
   ];
   modules.forEach(mod => {
-    const safeMod = mod.module_name.replace(/[()":]/g, '');
+    const safeMod = mod.module_name.replace(/[()":;]/g, '');
     mindmapLines.push(`    ${safeMod}`);
-    mod.key_concepts.slice(0, 2).forEach(c => {
-      const safeTerm = c.term.replace(/[()":]/g, '');
-      mindmapLines.push(`      ${safeTerm}`);
+    mod.key_concepts.slice(0, 3).forEach(c => {
+      const safeTerm = c.term.replace(/[()":;]/g, '');
+      if (safeTerm && safeTerm !== safeMod) {
+        mindmapLines.push(`      ${safeTerm}`);
+      }
     });
   });
 
   // Construct Mermaid Flowchart per PDF deck
   const flowLines = [
     "graph TD",
-    "  classDef default fill:#121826,stroke:#6366f1,stroke-width:2px,color:#f1f5f9;"
+    "  classDef default fill:#1e293b,stroke:#818cf8,stroke-width:2px,color:#ffffff;"
   ];
   let prevId = null;
   modules.forEach((mod, idx) => {
     const id = `D${fileName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4)}M${idx + 1}`;
-    const safeName = mod.module_name.replace(/["']/g, '');
-    flowLines.push(`  ${id}["${mod.module_name}"]`);
+    const safeName = mod.module_name.replace(/["';]/g, '');
+    flowLines.push(`  ${id}["Module ${idx + 1}: ${safeName}"]`);
     if (prevId) {
       flowLines.push(`  ${prevId} --> ${id}`);
     }
