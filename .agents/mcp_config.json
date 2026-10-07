@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "c:\\Users\\Tanishka\\OneDrive\\Desktop\\GEN AI DEBOISTECH\\GEN AI ASSIGNMENT-1"
+      ]
+    }
+  }
+}
